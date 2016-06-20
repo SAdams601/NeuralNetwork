@@ -5,6 +5,10 @@ import Control.Monad
 
 data Perceptron = Per{ actF :: (Float -> Int), weights :: [Float], bias :: Float}
 
+instance Show Perceptron where
+  show p = let w = weights p in
+    "Per" ++ (show w)
+
 heaviside :: Float -> Int
 heaviside f = if f < 0
               then 0
