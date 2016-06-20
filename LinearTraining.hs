@@ -5,11 +5,17 @@ import System.Random
 import Control.Monad
 
 newtype Line = Line (Int,Int)
+             deriving (Show, Eq)
 
 unsafeRandomLine :: Line
 unsafeRandomLine = Line (a,b)
   where a = unsafePerformIO $ randomRIO (1,10)
         b = unsafePerformIO $ randomRIO (1,10)
+
+randomLine :: RandomGen g => g -> Line
+randomLine gen = Line (a,b)
+  where (a, gen2) = randomR (1,10) gen
+        (b, _) = randomR (1,10) gen2
 
 f :: Line -> Float -> Float
 f (Line (a,b)) x = ((fromIntegral a) * x) + (fromIntegral b)
@@ -21,6 +27,12 @@ isAboveLine [x,y] ln = if y > f ln x
 
 unsafeGetPoint :: [Float]
 unsafeGetPoint = take 2 (randomRs (1,100) (unsafePerformIO getStdGen))
+
+randomPoint :: RandomGen g => g -> IO [Float]
+randomPoint gen = do
+  x <- randomRIO (1,100)
+  y <- randomRIO (1,100)
+  return [x,y]
 
 trainPerceptron :: Perceptron -> Int -> Line -> Float -> Perceptron
 trainPerceptron per iters ln lr = if iters == 0
@@ -38,19 +50,25 @@ iteration ln per lr = let point = unsafeGetPoint
 
 verify :: Line -> Perceptron -> IO ()
 verify ln per = do
-  let results = replicate 100 verifyPer
-      correct = length (filter (\r -> r) results)
+  gen <- getStdGen
+  results <- replicateM 100 (verifyPer gen per ln)
+  let correct = length (filter (\r -> r) results)
   putStrLn $ "The number of correct results is: " ++ (show correct)
-    where verifyPer = let pt = unsafeGetPoint
-                          act = run per pt
-                          expected = isAboveLine pt ln in
-                      act == expected
+
+verifyPer :: RandomGen g => g -> Perceptron -> Line -> IO Bool
+verifyPer g per ln = do
+  pt <- randomPoint g
+  let act = run per pt
+      expected = isAboveLine pt ln
+  return $ act == expected
   
 
 main :: IO ()
 main = do
+  gen <- getStdGen
   let per = basicPerceptron 2
-      line = unsafeRandomLine
+      line = randomLine gen
+  putStrLn $ "The line: " ++ (show line)
   putStrLn $ "The perceptron before training:\n" ++ (show per) 
   putStrLn "Verifying the perceptron before training"
   verify line per
